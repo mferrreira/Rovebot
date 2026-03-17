@@ -1,0 +1,1 @@
+"""Rovebot application package."""
