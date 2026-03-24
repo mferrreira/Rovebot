@@ -1,35 +1,15 @@
 from __future__ import annotations
 
-import base64
-import json
 from datetime import datetime, timezone
-
 from functools import lru_cache
 
 import httpx
+import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel
 
+from app.models import GmailWebhookPayload, PubSubPayload
 from app.services.pipeline import EmailPipeline
 from app.settings import Settings, get_settings
-
-
-class GmailWebhookPayload(BaseModel):
-    message_id: str
-
-
-class PubSubMessage(BaseModel):
-    data: str
-    messageId: str
-
-
-class PubSubPayload(BaseModel):
-    message: PubSubMessage
-    subscription: str
-
-    def decode_data(self) -> dict:
-        padded = self.message.data + "=" * (-len(self.message.data) % 4)
-        return json.loads(base64.urlsafe_b64decode(padded))
 
 
 app = FastAPI(title="Rovebot v0")
@@ -80,10 +60,13 @@ def gmail_pubsub(
     settings: Settings = Depends(get_settings),
     pipeline: EmailPipeline = Depends(get_pipeline),
 ) -> dict[str, object]:
-    if not _verify_pubsub_token(authorization, settings.pubsub_audience):
+    if not settings.pubsub_skip_auth and not _verify_pubsub_token(authorization, settings.pubsub_audience):
         raise HTTPException(status_code=401, detail="invalid pubsub token")
     data = payload.decode_data()
     history_id = str(data["historyId"])
-    message_ids = pipeline.gmail.fetch_new_message_ids(history_id)
-    results = [pipeline.run(message_id) for message_id in message_ids]
+    results = pipeline.process_new_emails(history_id)
     return {"processed": len(results)}
+
+
+def main() -> None:
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)

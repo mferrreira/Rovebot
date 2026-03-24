@@ -12,6 +12,9 @@ dependencies = [
   "uvicorn>=0.34.0,<1.0.0",
 ]
 
+[project.scripts]
+rovebot = "app.main:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.3.0,<9.0.0",

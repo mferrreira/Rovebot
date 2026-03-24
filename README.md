@@ -5,8 +5,16 @@ Rovebot v0 is a deterministic email-processing backend for Gmail intake, context
 ## Local development
 
 1. Install dependencies: `uv sync --extra dev`
-2. Run the API: `uv run uvicorn app.main:app --reload`
-3. Run tests: `uv run pytest`
+2. Run the setup wizard: `uv run rovebot setup`
+3. Run the API: `uv run uvicorn app.main:app --reload`
+4. Run tests: `uv run pytest`
+
+## CLI
+
+- `uv run rovebot setup`: interactive wizard that fills or updates `.env`
+- `uv run rovebot setup --open-links`: same wizard, but opens provider setup links in the browser
+- `uv run rovebot doctor`: validates that the required environment variables are present
+- `uv run rovebot open-links`: prints the setup URLs for Anthropic, Slack, Gmail, and Pub/Sub
 
 ## Environment variables
 

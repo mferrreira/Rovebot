@@ -8,9 +8,11 @@ from app.integrations.llm import AnthropicLLMClient
 from app.integrations.slack import SlackApiClient
 from app.settings import Settings
 
+
 class EmailPipeline:
     def __init__(self, settings: Settings, gmail=None, llm=None, slack=None):
         self.settings = settings
+        self.knowledge = self._load_file(settings.knowledge_dir / "style_guide.md")
         self.gmail = gmail or self._build_gmail_client()
         self.llm = llm or self._build_llm_client()
         self.slack = slack or self._build_slack_client()
@@ -26,8 +28,7 @@ class EmailPipeline:
             thread_history=[self._clean_text(item) for item in email.thread_history if item.strip()],
             received_at=email.received_at,
         )
-        knowledge = self._load_knowledge()
-        draft = self.llm.generate(clean_email, knowledge)
+        draft = self.llm.generate(clean_email, self.knowledge)
         slack_result = self.slack.send(clean_email, draft)
         return {
             "message_id": clean_email.message_id,
@@ -38,11 +39,19 @@ class EmailPipeline:
             "slack": slack_result,
         }
 
-    def _load_knowledge(self) -> str:
-        path = Path(self.settings.knowledge_dir) / "style_guide.md"
-        if not path.exists():
-            return ""
-        return path.read_text(encoding="utf-8")[:4000]
+    def process_new_emails(self, notification_history_id: str) -> list[dict[str, object]]:
+        start_id = self._load_history_id() or notification_history_id
+        message_ids = self.gmail.fetch_new_message_ids(start_id)
+        results = [self.run(mid) for mid in message_ids]
+        self._save_history_id(notification_history_id)
+        return results
+
+    def _load_history_id(self) -> str | None:
+        path = self.settings.history_id_file
+        return path.read_text().strip() if path.exists() else None
+
+    def _save_history_id(self, history_id: str) -> None:
+        self.settings.history_id_file.write_text(history_id)
 
     def _build_gmail_client(self):
         if not self.settings.gmail_access_token:
@@ -52,12 +61,20 @@ class EmailPipeline:
     def _build_llm_client(self):
         if not self.settings.anthropic_api_key:
             raise ValueError("ROVEBOT_ANTHROPIC_API_KEY is required")
-        return AnthropicLLMClient(self.settings.anthropic_api_key, self.settings.llm_model, self.settings.anthropic_base_url)
+        system_prompt = self._load_file(Path("prompts/email_draft.md"))
+        return AnthropicLLMClient(self.settings.anthropic_api_key, self.settings.llm_model, self.settings.anthropic_base_url, system_prompt)
 
     def _build_slack_client(self):
         if not self.settings.slack_bot_token:
             raise ValueError("ROVEBOT_SLACK_BOT_TOKEN is required")
         return SlackApiClient(self.settings.slack_api_url, self.settings.slack_bot_token, self.settings.slack_channel)
 
-    def _clean_text(self, text: str) -> str:
+    @staticmethod
+    def _load_file(path: Path) -> str:
+        if not path.exists():
+            return ""
+        return path.read_text(encoding="utf-8")[:4000]
+
+    @staticmethod
+    def _clean_text(text: str) -> str:
         return re.sub(r"\s+", " ", text).strip()[:4000]
