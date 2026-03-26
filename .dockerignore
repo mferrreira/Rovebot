@@ -1,0 +1,15 @@
+.env
+.venv
+.git
+.claude
+__pycache__
+*.pyc
+*.egg-info
+knowledge/
+drafts_store.json
+last_history_id.txt
+tests/
+*.png
+README.md
+CLAUDE.md
+fly.toml
