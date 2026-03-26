@@ -102,7 +102,7 @@ def _run_setup() -> None:
     print("Press Enter to keep the current value shown in [brackets].\n")
 
     # ── [ 1 / 4 ] Anthropic ──────────────────────────────────────────────────
-    print("[ 1 / 4 ] Anthropic API Key\n")
+    print("[ 1 / 5 ] Anthropic API Key\n")
     current_key = settings.anthropic_api_key or ""
     hint = f"[{current_key[:12]}...] " if current_key else ""
     api_key = input(f"  Anthropic API key {hint}(sk-ant-...): ").strip()
@@ -114,8 +114,8 @@ def _run_setup() -> None:
     else:
         print("  WARNING: no API key set — LLM calls will fail.\n")
 
-    # ── [ 2 / 4 ] Gmail ──────────────────────────────────────────────────────
-    print("[ 2 / 4 ] Gmail OAuth\n")
+    # ── [ 2 / 5 ] Gmail ──────────────────────────────────────────────────────
+    print("[ 2 / 5 ] Gmail OAuth\n")
     print("  Make sure 'http://localhost:8080/callback' is an authorized redirect URI")
     print("  in your Google Cloud Console OAuth app.\n")
     access_token, refresh_token = run_oauth_flow(
@@ -125,8 +125,20 @@ def _run_setup() -> None:
     _update_env("ROVEBOT_GMAIL_REFRESH_TOKEN", refresh_token)
     print("  Gmail tokens saved.\n")
 
-    # ── [ 3 / 4 ] Slack ──────────────────────────────────────────────────────
-    print("[ 3 / 4 ] Slack App\n")
+    # ── [ 3 / 5 ] Sender name ────────────────────────────────────────────────
+    print("[ 3 / 5 ] Sender Name\n")
+    current_name = settings.sender_name
+    name = input(f"  Your name for email sign-offs [{current_name or 'e.g. Gabe'}]: ").strip()
+    if name:
+        _update_env("ROVEBOT_SENDER_NAME", name)
+        print()
+    elif current_name:
+        print(f"  Kept: {current_name}\n")
+    else:
+        print("  WARNING: no name set — drafts may end with a placeholder.\n")
+
+    # ── [ 4 / 5 ] Slack ──────────────────────────────────────────────────────
+    print("[ 4 / 5 ] Slack App\n")
     print("  If you haven't created a Slack app yet, follow these steps:\n")
     print("  a) https://api.slack.com/apps → 'Create New App' → 'From scratch'")
     print("     Name it (e.g. Rovebot) and pick your workspace.\n")
@@ -157,8 +169,8 @@ def _run_setup() -> None:
         print("\n  → Remember to set the Interactivity Request URL in your Slack app:")
         print("    https://YOUR_SERVER/webhooks/slack/actions\n")
 
-    # ── [ 4 / 4 ] Polling ────────────────────────────────────────────────────
-    print("[ 4 / 4 ] Gmail Polling\n")
+    # ── [ 5 / 5 ] Polling ────────────────────────────────────────────────────
+    print("[ 5 / 5 ] Gmail Polling\n")
     print("  Polling mode checks Gmail on a background loop (no webhook needed).")
     current_polling = "yes" if settings.gmail_polling else "no"
     polling_input = input(f"  Enable polling? [{current_polling}]: ").strip().lower()

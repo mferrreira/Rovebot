@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     slack_bot_token: str | None = None
     slack_api_url: str = Field(default="https://slack.com/api/chat.postMessage")
     slack_channel: str = Field(default="#ops-email-review")
+    sender_name: str = Field(default="")
     slack_signing_secret: str | None = None
     slack_views_url: str = Field(default="https://slack.com/api/views.open")
     slack_update_url: str = Field(default="https://slack.com/api/chat.update")

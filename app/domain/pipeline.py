@@ -33,7 +33,9 @@ class EmailPipeline:
         classify_base = Path("prompts/classify.md").read_text(encoding="utf-8")
         _rubric = self._load_optional(settings.knowledge_dir / "rubric.md")
         self.classify_prompt = f"{classify_base}\n\n{_rubric}".strip() if _rubric else classify_base
-        self.draft_prompt = Path("prompts/draft.md").read_text(encoding="utf-8")
+        draft_base = Path("prompts/draft.md").read_text(encoding="utf-8")
+        sender_line = f"Sender name (use this to sign replies): {settings.sender_name}" if settings.sender_name else ""
+        self.draft_prompt = f"{draft_base}\n\n{sender_line}".strip() if sender_line else draft_base
         self.style_guide = self._load_optional(settings.knowledge_dir / "STYLEGUIDE.md")
         self.learning_path = settings.knowledge_dir / "learning.md"
         self.learning = self._load_optional(self.learning_path)
