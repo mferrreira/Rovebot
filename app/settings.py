@@ -11,11 +11,15 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="claude-sonnet-4-20250514")
     knowledge_dir: Path = Field(default=Path("knowledge"))
     history_id_file: Path = Field(default=Path("last_history_id.txt"))
+    gmail_polling: bool = Field(default=False)
+    polling_interval_seconds: int = Field(default=10)
     gmail_webhook_token: str = Field(default="dev-gmail-token")
     pubsub_audience: str = Field(default="")
     pubsub_skip_auth: bool = Field(default=False)
     gmail_api_base_url: str = Field(default="https://gmail.googleapis.com/gmail/v1")
+    gmail_timeout: float = Field(default=30.0)
     gmail_access_token: str | None = None
+    gmail_refresh_token: str | None = None
     gmail_client_id: str | None
     gmail_client_secret: str
     anthropic_api_key: str | None = None
@@ -23,6 +27,10 @@ class Settings(BaseSettings):
     slack_bot_token: str | None = None
     slack_api_url: str = Field(default="https://slack.com/api/chat.postMessage")
     slack_channel: str = Field(default="#ops-email-review")
+    slack_signing_secret: str | None = None
+    slack_views_url: str = Field(default="https://slack.com/api/views.open")
+    slack_update_url: str = Field(default="https://slack.com/api/chat.update")
+    draft_store_file: Path = Field(default=Path("drafts_store.json"))
 
 
 @lru_cache(maxsize=1)

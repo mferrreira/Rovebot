@@ -209,3 +209,13 @@ __marimo__/
 
 PROJECT.md
 PLAN.md
+
+# Rovebot runtime state
+last_history_id.txt
+
+# Claude Code local session data
+.claude/
+
+knowledge/
+Architecture.png
+CLAUDE.md

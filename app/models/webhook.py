@@ -5,15 +5,12 @@ import json
 
 from pydantic import BaseModel
 
-
 class GmailWebhookPayload(BaseModel):
     message_id: str
-
 
 class PubSubMessage(BaseModel):
     data: str
     messageId: str
-
 
 class PubSubPayload(BaseModel):
     message: PubSubMessage
