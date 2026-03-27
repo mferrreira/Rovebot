@@ -28,7 +28,7 @@ def _label_for(classification: ClassificationResult) -> str:
 
 
 class EmailPipeline:
-    def __init__(self, settings: Settings, gmail=None, llm=None, slack=None):
+    def __init__(self, settings: Settings, gmail=None, classify_llm=None, draft_llm=None, slack=None):
         self.settings = settings
         classify_base = Path("prompts/classify.md").read_text(encoding="utf-8")
         _rubric = self._load_optional(settings.knowledge_dir / "rubric.md")
@@ -37,10 +37,11 @@ class EmailPipeline:
         sender_line = f"Sender name (use this to sign replies): {settings.sender_name}" if settings.sender_name else ""
         self.draft_prompt = f"{draft_base}\n\n{sender_line}".strip() if sender_line else draft_base
         self.style_guide = self._load_optional(settings.knowledge_dir / "STYLEGUIDE.md")
-        self.learning_path = settings.knowledge_dir / "learning.md"
+        self.learning_path = settings.learning_file
         self.learning = self._load_optional(self.learning_path)
         self.gmail = gmail or self._build_gmail_client()
-        self.llm = llm or self._build_llm_client()
+        self.classify_llm = classify_llm or self._build_classify_llm_client()
+        self.draft_llm = draft_llm or self._build_draft_llm_client()
         self.slack = slack or self._build_slack_client()
         self.draft_store = DraftStore(settings.draft_store_file)
         logger.info("EmailPipeline ready")
@@ -53,7 +54,7 @@ class EmailPipeline:
 
         # ── Classify (with fallback) ──────────────────────────────────────────
         try:
-            classification = classify(email, self.llm, self.classify_prompt)
+            classification = classify(email, self.classify_llm, self.classify_prompt)
             logger.info("classified — category=%s attention=%s tier=%s",
                         classification.category, classification.needs_attention,
                         classification.partnership_tier)
@@ -98,7 +99,7 @@ class EmailPipeline:
         draft_text: str | None = None
         guardrail_warnings: list[str] = []
         try:
-            draft_text = draft(email, classification, self.llm, self.draft_prompt,
+            draft_text = draft(email, classification, self.draft_llm, self.draft_prompt,
                                self.style_guide, self.learning)
             if draft_text:
                 guard = check_draft(draft_text)
@@ -217,7 +218,7 @@ class EmailPipeline:
                 logger.info("draft updated id=%s", ctx.gmail_draft_id)
             except Exception:
                 logger.exception("handle_edit_submit — gmail update failed")
-        extract_and_append(original, edited_text, self.llm, self.learning_path)
+        extract_and_append(original, edited_text, self.draft_llm, self.learning_path)
         self.learning = self._load_optional(self.learning_path)
         self.draft_store.update_original(slack_ts, edited_text)
         try:
@@ -281,12 +282,21 @@ class EmailPipeline:
             timeout=self.settings.gmail_timeout,
         )
 
-    def _build_llm_client(self) -> AnthropicLLMClient:
+    def _build_classify_llm_client(self) -> AnthropicLLMClient:
         if not self.settings.anthropic_api_key:
             raise ValueError("ROVEBOT_ANTHROPIC_API_KEY is required")
         return AnthropicLLMClient(
             self.settings.anthropic_api_key,
-            self.settings.llm_model,
+            self.settings.classify_model,
+            self.settings.anthropic_base_url,
+        )
+
+    def _build_draft_llm_client(self) -> AnthropicLLMClient:
+        if not self.settings.anthropic_api_key:
+            raise ValueError("ROVEBOT_ANTHROPIC_API_KEY is required")
+        return AnthropicLLMClient(
+            self.settings.anthropic_api_key,
+            self.settings.draft_model,
             self.settings.anthropic_base_url,
         )
 

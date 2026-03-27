@@ -28,5 +28,6 @@ def extract_and_append(original: str, edited: str, client: AnthropicLLMClient, l
         return
     existing = learning_path.read_text(encoding="utf-8") if learning_path.exists() else ""
     sep = "\n\n" if existing.strip() else ""
+    learning_path.parent.mkdir(parents=True, exist_ok=True)
     learning_path.write_text(existing + sep + bullets + "\n", encoding="utf-8")
     logger.info("learning — new bullets appended to %s", learning_path)
