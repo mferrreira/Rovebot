@@ -56,3 +56,15 @@ def _verify_pubsub_token(authorization: str | None, audience: str) -> bool:
         return response.status_code == 200 and data.get("aud") == audience
     except Exception:
         return False
+
+@router.post("/webhooks/cron/poll")
+def cron_poll(
+    authorization: str | None = Header(default=None),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, object]:
+    """Triggered by Cloud Scheduler. Wait synchronously so Cloud Run doesn't throttle."""
+    if not authorization or authorization.removeprefix("Bearer ") != settings.cron_token:
+        raise HTTPException(status_code=401, detail="invalid cron token")
+    
+    results = _get_pipeline().poll()
+    return {"processed": len(results)}

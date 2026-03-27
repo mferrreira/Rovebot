@@ -11,10 +11,22 @@ Rovebot v0 is a deterministic email-processing backend for Gmail intake, context
 
 ## CLI
 
-- `uv run rovebot setup`: interactive wizard that fills or updates `.env`
+- `uv run rovebot setup`: interactive wizard that fills or updates `.env`. Now automatically generates a secure `env.yaml` for cloud scaling upon completion.
+- `uv run deploy`: interactive deployment wizard. Prompts you to pick a Google Cloud Account and Project, provisions an auto-scaling Cloud Storage Volume, and deploys the bot to Cloud Run natively.
 - `uv run rovebot setup --open-links`: same wizard, but opens provider setup links in the browser
 - `uv run rovebot doctor`: validates that the required environment variables are present
 - `uv run rovebot open-links`: prints the setup URLs for Anthropic, Slack, Gmail, and Pub/Sub
+
+## Google Cloud Deployment
+
+Because Rovebot relies on your personal Gmail OAuth tokens, you must authenticate on your local machine *before* deploying to a new Google Cloud project.
+
+1. **Authenticate Locally**: Run `uv run rovebot setup`. This will guide you through the OAuth flows and securely dump your credentials into `.env` and `env.yaml`.
+2. **Deploy to Cloud Run**: Run `uv run deploy`. This interactive script will handle everything on Google Cloud for you:
+   - It prompts you to select or create a GCP Project.
+   - It enables all required APIs (Cloud Run, Scheduler, Storage).
+   - It dynamically creates a **Cloud Storage Bucket volume** and mounts it directly into your Cloud Run container. This fixes the fundamental "Serverless" storage amnesia, allowing the bot to preserve your Draft States and LLM Learnings securely across active instances.
+   - It deploys the code with zero downtime and provides your final **Slack Request URL** to paste into your app dashboard manually.
 
 ## Environment variables
 

@@ -8,7 +8,7 @@ import logging
 import time
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from app.api.webhooks import _get_pipeline
 from app.settings import Settings, get_settings
@@ -18,7 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/webhooks/slack/actions")
-async def slack_actions(request: Request, settings: Settings = Depends(get_settings)) -> dict:
+async def slack_actions(
+    request: Request, 
+    background_tasks: BackgroundTasks,
+    settings: Settings = Depends(get_settings)
+) -> dict:
     raw_body = await request.body()
 
     if settings.slack_signing_secret:
@@ -49,13 +53,13 @@ async def slack_actions(request: Request, settings: Settings = Depends(get_setti
         pipeline = _get_pipeline()
 
         if action_id == "send_draft":
-            loop = asyncio.get_event_loop()
-            asyncio.create_task(
-                loop.run_in_executor(None, pipeline.handle_send, slack_ts, channel, blocks, user_name)
+            background_tasks.add_task(
+                pipeline.handle_send, slack_ts, channel, blocks, user_name
             )
         elif action_id == "edit_draft":
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, pipeline.handle_edit_open, slack_ts, trigger_id)
+            background_tasks.add_task(
+                pipeline.handle_edit_open, slack_ts, trigger_id
+            )
 
     elif event_type == "view_submission":
         view = data.get("view", {})
@@ -67,11 +71,9 @@ async def slack_actions(request: Request, settings: Settings = Depends(get_setti
             edited_text = state.get("draft_text", {}).get("draft_input", {}).get("value", "")
             user_name = data.get("user", {}).get("name", "unknown")
             pipeline = _get_pipeline()
-            loop = asyncio.get_event_loop()
-            asyncio.create_task(
-                loop.run_in_executor(
-                    None, pipeline.handle_edit_submit, slack_ts, channel, edited_text, user_name
-                )
+            
+            background_tasks.add_task(
+                pipeline.handle_edit_submit, slack_ts, channel, edited_text, user_name
             )
 
     return {}

@@ -50,7 +50,12 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Rovebot starting — env=%s polling=%s interval=%ss",
                 settings.env, settings.gmail_polling, settings.polling_interval_seconds)
-    if settings.gmail_polling:
+    
+    # If running on Cloud Run, K_SERVICE is set. Background CPU might be throttled.
+    if os.environ.get("K_SERVICE"):
+        logger.info("Running on Cloud Run — background polling disabled. Waiting for cron webhooks.")
+        yield
+    elif settings.gmail_polling:
         task = asyncio.create_task(_polling_loop(settings))
         yield
         task.cancel()
@@ -162,14 +167,15 @@ def _run_setup() -> None:
         _update_env("ROVEBOT_SLACK_SIGNING_SECRET", signing_secret)
     _update_env("ROVEBOT_SLACK_CHANNEL", channel)
 
-    server_url = input("\n  Public URL of this server (e.g. https://rovebot.example.com): ").strip().rstrip("/")
+    print("\n  If you plan to deploy to Google Cloud Run, leave this blank for now.")
+    print("  The 'uv run deploy' script will give you the exact URL at the end of the deployment.")
+    server_url = input("  Public URL of this server (if already deployed): ").strip().rstrip("/")
     if server_url:
         interactivity_url = f"{server_url}/webhooks/slack/actions"
         print(f"\n  → Set this as the Interactivity Request URL in your Slack app:")
         print(f"    {interactivity_url}\n")
     else:
-        print("\n  → Remember to set the Interactivity Request URL in your Slack app:")
-        print("    https://YOUR_SERVER/webhooks/slack/actions\n")
+        print("\n  → We will configure the Interactivity Request URL after deployment.\n")
 
     # ── [ 5 / 5 ] Polling ────────────────────────────────────────────────────
     print("[ 5 / 5 ] Gmail Polling\n")
@@ -188,7 +194,9 @@ def _run_setup() -> None:
 
     # ── Done ─────────────────────────────────────────────────────────────────
     print("=" * 40)
+    _generate_env_yaml()
     print("Setup complete. Run:  uv run rovebot")
+    print("To deploy to Google Cloud, run:  uv run deploy")
     print("=" * 40)
 
 
@@ -202,3 +210,23 @@ def _update_env(key: str, value: str) -> None:
     else:
         content = content.rstrip("\n") + f"\n{replacement}\n"
     env_path.write_text(content)
+
+def _generate_env_yaml() -> None:
+    env_path = Path(".env")
+    if not env_path.exists():
+        return
+        
+    out = []
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"): continue
+        if "=" in line:
+            k, v = line.split("=", 1)
+            # handle values with quotes already surrounding them
+            if v.startswith('"') and v.endswith('"'):
+                v = v[1:-1]
+            v = v.replace('"', '\\"')
+            out.append(f'{k}: "{v}"')
+            
+    Path("env.yaml").write_text("\n".join(out))
+    print("  -> Generated env.yaml for Cloud Run deployment")
