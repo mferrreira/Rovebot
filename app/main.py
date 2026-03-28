@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import logging.config
+import os
 import re
 import sys
 from contextlib import asynccontextmanager
@@ -91,7 +92,8 @@ def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "setup":
         _run_setup()
         return
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
 
 
 def _run_setup() -> None:
@@ -101,7 +103,7 @@ def _run_setup() -> None:
     print("=== Rovebot Setup ===")
     print("Press Enter to keep the current value shown in [brackets].\n")
 
-    # ── [ 1 / 4 ] Anthropic ──────────────────────────────────────────────────
+    # ── [ 1 / 5 ] Anthropic ──────────────────────────────────────────────────
     print("[ 1 / 5 ] Anthropic API Key\n")
     current_key = settings.anthropic_api_key or ""
     hint = f"[{current_key[:12]}...] " if current_key else ""

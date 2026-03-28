@@ -11,6 +11,7 @@ RUN uv sync --no-dev --frozen --no-install-project
 # Copy source
 COPY app/ app/
 COPY prompts/ prompts/
+COPY knowledge/ knowledge/
 COPY main.py .
 
 # Install the project entry point

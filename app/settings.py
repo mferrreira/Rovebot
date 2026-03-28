@@ -8,8 +8,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="ROVEBOT_", extra="ignore")
 
     env: str = Field(default="development")
-    llm_model: str = Field(default="claude-sonnet-4-20250514")
+    classify_model: str = Field(default="claude-haiku-4-5-20251001")
+    draft_model: str = Field(default="claude-haiku-4-5-20251001")
     knowledge_dir: Path = Field(default=Path("knowledge"))
+    learning_file: Path = Field(default=Path("knowledge/learning.md"))
     history_id_file: Path = Field(default=Path("last_history_id.txt"))
     gmail_polling: bool = Field(default=False)
     polling_interval_seconds: int = Field(default=10)
