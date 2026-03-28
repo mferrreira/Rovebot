@@ -1,4 +1,4 @@
-# Rovebot
+# Customer Response Agent - Rovebot
 
 Rovebot v0 is a deterministic email-processing backend for Gmail intake, context assembly, LLM drafting, and Slack-based human approval.
 
