@@ -14,7 +14,6 @@ dependencies = [
 
 [project.scripts]
 rovebot = "app.main:main"
-deploy = "app.deploy:main"
 
 [project.optional-dependencies]
 dev = [

@@ -8,6 +8,7 @@ import webbrowser
 from datetime import datetime, timezone
 from email import message_from_bytes
 from email.header import decode_header as _decode_header, make_header as _make_header
+from email.utils import parseaddr
 from email.message import Message
 from email.mime.text import MIMEText
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -98,7 +99,13 @@ class GmailApiClient:
         ids: list[str] = []
         for record in payload.get("history", []):
             for added in record.get("messagesAdded", []):
-                message_id = added.get("message", {}).get("id")
+                message = added.get("message", {})
+                label_ids = set(message.get("labelIds", []))
+                # Only process real inbox arrivals. Sent/draft messages also appear in
+                # history and can cause the bot to answer the user's own outbound email.
+                if "INBOX" not in label_ids or {"SENT", "DRAFT"} & label_ids:
+                    continue
+                message_id = message.get("id")
                 if message_id:
                     ids.append(message_id)
         return ids
@@ -124,8 +131,9 @@ class GmailApiClient:
 
     def create_draft(self, to: str, subject: str, body: str, thread_id: str) -> str:
         reply_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
+        _, to_addr = parseaddr(to)
         msg = MIMEText(body, "plain", "utf-8")
-        msg["To"] = to
+        msg["To"] = to_addr
         msg["Subject"] = reply_subject
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         return str(self._post(
@@ -134,12 +142,13 @@ class GmailApiClient:
         ).json()["id"])
 
     def send_draft(self, draft_id: str) -> None:
-        self._post(f"/users/me/drafts/{draft_id}/send", {})
+        self._post("/users/me/drafts/send", {"id": draft_id})
 
     def update_draft(self, draft_id: str, to: str, subject: str, body: str, thread_id: str) -> None:
         reply_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
+        _, to_addr = parseaddr(to)
         msg = MIMEText(body, "plain", "utf-8")
-        msg["To"] = to
+        msg["To"] = to_addr
         msg["Subject"] = reply_subject
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         self._put(f"/users/me/drafts/{draft_id}", {"message": {"raw": raw, "threadId": thread_id}})
@@ -174,6 +183,8 @@ class GmailApiClient:
             logger.warning("Gmail 401 on POST %s — refreshing token", path)
             self._refresh_access_token()
             response = self._do_post(path, body)
+        if not response.is_success:
+            logger.error("Gmail %s on POST %s — body: %s", response.status_code, path, response.text)
         response.raise_for_status()
         return response
 
@@ -198,6 +209,8 @@ class GmailApiClient:
             logger.warning("Gmail 401 on PUT %s — refreshing token", path)
             self._refresh_access_token()
             response = self._do_put(path, body)
+        if not response.is_success:
+            logger.error("Gmail %s on PUT %s — body: %s", response.status_code, path, response.text)
         response.raise_for_status()
         return response
 

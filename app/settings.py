@@ -16,7 +16,6 @@ class Settings(BaseSettings):
     gmail_polling: bool = Field(default=False)
     polling_interval_seconds: int = Field(default=10)
     gmail_webhook_token: str = Field(default="dev-gmail-token")
-    cron_token: str = Field(default="dev-cron-token")
     pubsub_audience: str = Field(default="")
     pubsub_skip_auth: bool = Field(default=False)
     gmail_api_base_url: str = Field(default="https://gmail.googleapis.com/gmail/v1")

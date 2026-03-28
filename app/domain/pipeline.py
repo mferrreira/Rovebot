@@ -120,6 +120,7 @@ class EmailPipeline:
                 logger.info("Gmail draft created id=%s", gmail_draft_id)
             except Exception:
                 logger.exception("gmail draft creation failed — draft will be shown inline only")
+                self.slack.send_pipeline_error(email, "Gmail draft creation failed — draft shown in Slack only.")
 
         result = DraftResult(
             category=classification.category,
@@ -181,13 +182,13 @@ class EmailPipeline:
         except Exception:
             logger.exception("handle_send — gmail send failed")
             return
-        updated = [b for b in blocks if b.get("type") != "actions"]
-        updated.append({
-            "type": "context",
-            "elements": [{"type": "mrkdwn", "text": f"✅ Sent by @{user_name}"}],
-        })
         try:
-            self.slack.update_message(channel, slack_ts, updated, f"Draft sent by {user_name}")
+            self.slack.update_message(
+                channel,
+                slack_ts,
+                _build_sent_status_blocks(blocks, user_name),
+                f"Draft sent by {user_name}",
+            )
         except Exception:
             logger.exception("handle_send — slack update failed")
 
@@ -240,7 +241,12 @@ class EmailPipeline:
         if message_ids:
             logger.info("poll — found %d new message(s)", len(message_ids))
         self._save_history_id(new_id)
-        results = [self.run(mid) for mid in message_ids]
+        results = []
+        for mid in message_ids:
+            try:
+                results.append(self.run(mid))
+            except Exception as e:
+                logger.warning("poll — skipping message %s: %s", mid, e)
         return results
 
     def process_new_emails(self, notification_history_id: str) -> list[dict[str, object]]:
@@ -327,7 +333,33 @@ def _build_edited_status_blocks(edited_text: str, user_name: str) -> list[dict]:
             "text": {"type": "mrkdwn", "text": f"*Draft reply (edited by @{user_name}):*\n```{edited_text}```"},
         },
         {
+            "type": "actions",
+            "block_id": "draft_actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "action_id": "send_draft",
+                    "text": {"type": "plain_text", "text": "Send Draft"},
+                    "style": "primary",
+                },
+                {
+                    "type": "button",
+                    "action_id": "edit_draft",
+                    "text": {"type": "plain_text", "text": "Edit Draft"},
+                },
+            ],
+        },
+        {
             "type": "context",
             "elements": [{"type": "mrkdwn", "text": f"✏️ Edited by @{user_name}"}],
         },
     ]
+
+
+def _build_sent_status_blocks(blocks: list[dict], user_name: str) -> list[dict]:
+    updated = [b for b in blocks if b.get("type") != "actions"]
+    updated.append({
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": f"✅ Sent by @{user_name}"}],
+    })
+    return updated
